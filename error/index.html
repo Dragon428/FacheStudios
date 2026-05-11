@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>fachestudios.com/error/</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #f0f4f0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    font-family: 'Courier New', monospace;
+    overflow: hidden;
+  }
+  #score-container {
+    width: 800px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 6px;
+    font-size: 16px;
+    color: #4a5568;
+    letter-spacing: 2px;
+    font-weight: bold;
+    gap: 6px;
+  }
+  #record-label { color: #a0aec0; font-size: 13px; letter-spacing: 1px; margin-right: 4px; }
+  #high-score   { color: #a0aec0; margin-right: 18px; }
+  #current-score { color: #2d3748; min-width: 70px; text-align: right; }
+  #game-wrapper { position: relative; width: 800px; height: 300px; }
+  canvas { display: block; background: #f0f4f0; border-bottom: 2px solid #718096; cursor: pointer; }
+  #message {
+    position: absolute; top: 75px; left: 50%; transform: translateX(-50%);
+    text-align: center; color: #4a5568; pointer-events: none; white-space: nowrap;
+  }
+  #message .title { font-size: 28px; letter-spacing: 6px; font-weight: bold; }
+  #message .hint  { display: none; }
+</style>
+</head>
+<body>
+
+<div id="score-container">
+  <span id="record-label">Record</span>
+  <span id="high-score">00000</span>
+  <span id="current-score">00000</span>
+</div>
+<div id="game-wrapper">
+  <canvas id="canvas" width="800" height="300"></canvas>
+  <div id="message" style="display:none">
+    <div class="title"></div>
+    <div class="hint">Press SPACE or &uarr; to start</div>
+  </div>
+</div>
+
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const msg    = document.getElementById('message');
+const scoreEl = document.getElementById('current-score');
+const hiEl    = document.getElementById('high-score');
+
+const W = 800, H = 300, GROUND = H - 40;
+
+// Palette — muted slate green, not cartoony
+const C = {
+  body:   '#3d6b52',   // main body
+  dark:   '#2a4d3a',   // shadows / outlines
+  light:  '#5a8f72',   // highlights
+  eye:    '#1a2e22',   // eye
+  shine:  '#c8dfd0',   // eye shine
+  bg:     '#f0f4f0',
+};
+
+let state = 'idle', score = 0, highScore = 0, frame = 0, speed = 6, raf;
+
+/* ── Dino ─────────────────────────────────────────────────── */
+const dino = {
+  x: 80, y: GROUND, w: 44, h: 50,
+  vy: 0, jumping: false, ducking: false, leg: 0,
+
+  jump() { if (!this.jumping && !this.ducking) { this.vy = -17; this.jumping = true; } },
+  duck(on) { if (!this.jumping) { this.ducking = on; this.h = on ? 28 : 50; this.y = GROUND; } },
+
+  update() {
+    if (this.jumping) {
+      this.vy += 0.95; this.y += this.vy;
+      if (this.y >= GROUND) { this.y = GROUND; this.jumping = false; this.vy = 0; }
+    }
+    if (frame % 6 === 0) this.leg = (this.leg + 1) % 2;
+  },
+
+  draw() {
+    const x = this.x, y = this.y - this.h;
+    if (state === 'dead')   drawDead(x, y, this.w, this.h);
+    else if (this.ducking)  drawDuck(x, y);
+    else                    drawRun(x, y, this.w, this.h, this.jumping ? -1 : this.leg);
+  },
+
+  box() { return { x: this.x + 6, y: this.y - this.h + 4, w: this.w - 12, h: this.h - 4 }; }
+};
+
+/* ── Dino drawing — clean, geometric, grown-up ─────────────
+   Uses only fillRect + arc, no cartoon outlines or gradients.
+   Proportions inspired by the original Chrome dino silhouette
+   but with a subtle two-tone shading for depth.
+─────────────────────────────────────────────────────────── */
+
+function drawBody(x, y, w, h) {
+  // torso
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + 8,  y + h * 0.38, w - 8,  h * 0.40);
+  // upper-back hump
+  ctx.fillRect(x + 8,  y + h * 0.22, w - 16, h * 0.18);
+  // shadow underside
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 8,  y + h * 0.72, w - 14, 5);
+
+  // neck
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + 20, y + h * 0.10, 14, h * 0.30);
+
+  // head
+  ctx.fillRect(x + 14, y,            24, 20);
+
+  // snout — slightly darker
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 36, y + 8,         10,  9);
+
+  // nostril — 2 px dot
+  ctx.fillStyle = C.shine;
+  ctx.fillRect(x + 43, y + 10,         2,  2);
+
+  // eye socket (dark)
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 22, y + 4,          9,  9);
+  // eye pupil (bright)
+  ctx.fillStyle = C.eye;
+  ctx.fillRect(x + 23, y + 5,          7,  7);
+  // tiny shine
+  ctx.fillStyle = C.shine;
+  ctx.fillRect(x + 27, y + 5,          2,  2);
+
+  // tiny back-ridge spikes (3 flat triangles, muted)
+  ctx.fillStyle = C.dark;
+  for (let i = 0; i < 3; i++) {
+    const sx = x + 10 + i * 7, sy = y + h * 0.22;
+    ctx.fillRect(sx, sy - 5,   3, 5);   // vertical bar
+    ctx.fillRect(sx + 3, sy - 3, 2, 3); // angled hint
+  }
+
+  // forearm (small, tucked)
+  ctx.fillStyle = C.light;
+  ctx.fillRect(x + 22, y + h * 0.50, 7, 5);
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 27, y + h * 0.52, 4, 3);
+
+  // tail
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x,      y + h * 0.55, 10, 8);
+  ctx.fillRect(x - 7,  y + h * 0.63, 9,  6);
+  ctx.fillRect(x - 11, y + h * 0.70, 6,  4);
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x - 11, y + h * 0.73, 6,  2);
+}
+
+function drawLeg(x, y, h, phase) {
+  // upper leg
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x, y, 9, 16);
+  // lower leg
+  const ox = phase ? 6 : -4;
+  ctx.fillRect(x + ox, y + 14, 9, 14);
+  // foot
+  ctx.fillStyle = C.dark;
+  const fx = phase ? x + ox - 2 : x + ox;
+  ctx.fillRect(fx, y + 26, 14, 5);
+}
+
+function drawRun(x, y, w, h, phase) {
+  if (phase === -1) {
+    // jumping — both legs straight down
+    ctx.fillStyle = C.body;
+    ctx.fillRect(x + 14, y + h - 28, 9, 28);
+    ctx.fillRect(x + 25, y + h - 28, 9, 28);
+    ctx.fillStyle = C.dark;
+    ctx.fillRect(x + 12, y + h - 6,  14, 5);
+    ctx.fillRect(x + 23, y + h - 6,  14, 5);
+  } else if (phase === 0) {
+    drawLeg(x + 14, y + h - 30, h, false);
+    drawLeg(x + 24, y + h - 30, h, true);
+  } else {
+    drawLeg(x + 14, y + h - 30, h, true);
+    drawLeg(x + 24, y + h - 30, h, false);
+  }
+  drawBody(x, y, w, h);
+}
+
+function drawDuck(x, y) {
+  // ducking: stretched body, head forward
+  const w = 62, h = 28;
+  // body
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + 4,  y + 4,  w - 4, h - 4);
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 4,  y + h - 3, w - 10, 3);
+  // head forward
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + w - 16, y,      22, 16);
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + w + 4,  y + 6,  8,  8);
+  ctx.fillStyle = C.shine;
+  ctx.fillRect(x + w + 9,  y + 8,  2,  2);
+  // eye
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + w - 10, y + 3,  8,  8);
+  ctx.fillStyle = C.eye;
+  ctx.fillRect(x + w - 9,  y + 4,  6,  6);
+  ctx.fillStyle = C.shine;
+  ctx.fillRect(x + w - 6,  y + 4,  2,  2);
+  // tail
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x,       y + 6,  8,  6);
+  ctx.fillRect(x - 6,   y + 10, 8,  5);
+  // legs (two short stubs alternating)
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + 18,  y + h - 2, 9, 16);
+  ctx.fillRect(x + 34,  y + h - 2, 9, 16);
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 16,  y + h + 10, 14, 5);
+  ctx.fillRect(x + 32,  y + h + 10, 14, 5);
+  // spikes (flat)
+  ctx.fillStyle = C.dark;
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(x + 10 + i * 9, y, 3, 5);
+  }
+  // arm
+  ctx.fillStyle = C.light;
+  ctx.fillRect(x + w - 12, y + 13, 7, 4);
+}
+
+function drawDead(x, y, w, h) {
+  // Same body as run but standing still + X eye
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + 14, y + h - 28, 9, 28);
+  ctx.fillRect(x + 25, y + h - 28, 9, 28);
+  ctx.fillStyle = C.dark;
+  ctx.fillRect(x + 12, y + h - 6,  14, 5);
+  ctx.fillRect(x + 23, y + h - 6,  14, 5);
+  drawBody(x, y, w, h);
+  // Overwrite eye with X
+  ctx.fillStyle = C.body;
+  ctx.fillRect(x + 22, y + 4, 9, 9);
+  ctx.strokeStyle = '#8b0000';
+  ctx.lineWidth = 2; ctx.lineCap = 'square';
+  ctx.beginPath(); ctx.moveTo(x + 23, y + 5); ctx.lineTo(x + 30, y + 12); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 30, y + 5); ctx.lineTo(x + 23, y + 12); ctx.stroke();
+}
+
+/* ── Obstacles ─────────────────────────────────────────────── */
+let obstacles = [], obstacleTimer = 0, obstacleInterval = 60;
+
+function spawnObstacle() {
+  if (Math.random() < 0.15 && speed > 9) {
+    const by = Math.random() < 0.5 ? GROUND - 62 : GROUND - 20;
+    obstacles.push({ type: 'bird', x: W + 20, y: by, w: 44, h: 32, wf: 0 });
+  } else {
+    const n = Math.floor(Math.random() * 3) + 1, big = Math.random() < 0.4;
+    const cw = big ? 24 : 16, ch = big ? 52 : 36;
+    obstacles.push({ type: 'cactus', x: W + 20, y: GROUND, w: cw * n + (n - 1) * 4, h: ch, n, big });
+  }
+}
+
+/* ── Clouds ─────────────────────────────────────────────────── */
+let clouds = [];
+function spawnCloud() {
+  clouds.push({ x: W + 40, y: 28 + Math.random() * 55, w: 55 + Math.random() * 55, s: 0.7 + Math.random() * 0.6 });
+}
+spawnCloud(); spawnCloud();
+
+/* ── Draw helpers ───────────────────────────────────────────── */
+function drawCactus(ob) {
+  const sw = ob.big ? 16 : 11, sh = ob.h;
+  const aw = ob.big ? 9 : 6, ah = ob.big ? 18 : 13;
+  ctx.fillStyle = '#3a7d44';
+  for (let i = 0; i < ob.n; i++) {
+    const ox = ob.x + i * (sw + 4);
+    ctx.fillRect(ox, ob.y - sh, sw, sh);
+    ctx.fillRect(ox - aw, ob.y - sh + ah, aw, aw);
+    ctx.fillRect(ox - aw, ob.y - sh + ah - ah * 0.6, aw * 0.55, ah * 0.6 + aw);
+    ctx.fillRect(ox + sw, ob.y - sh + ah + 4, aw, aw);
+    ctx.fillRect(ox + sw + aw * 0.4, ob.y - sh + ah - ah * 0.4, aw * 0.55, ah * 0.4 + aw);
+    // subtle highlight edge
+    ctx.fillStyle = '#4d9e5a';
+    ctx.fillRect(ox + 2, ob.y - sh + 3, 3, sh - 8);
+    ctx.fillStyle = '#3a7d44';
+  }
+}
+
+function drawBird(ob) {
+  const bx = ob.x, by = ob.y, wf = ob.wf;
+  ctx.fillStyle = '#5a6e78';
+  // body
+  ctx.fillRect(bx + 10, by + 9, 20, 12);
+  // beak
+  ctx.fillStyle = '#8a9a6a';
+  ctx.fillRect(bx + 30, by + 12, 10, 4);
+  // eye
+  ctx.fillStyle = '#1a2a30';
+  ctx.fillRect(bx + 24, by + 10, 5, 5);
+  ctx.fillStyle = '#c8d8d0';
+  ctx.fillRect(bx + 27, by + 11, 2, 2);
+  // wings
+  ctx.fillStyle = '#47585f';
+  if (wf === 0) {
+    ctx.fillRect(bx + 6,  by,      20, 10); // upper
+    ctx.fillRect(bx + 8,  by + 21, 18, 8);  // lower
+  } else {
+    ctx.fillRect(bx + 6,  by + 4,  20, 8);
+    ctx.fillRect(bx + 8,  by + 19, 18, 7);
+  }
+}
+
+function drawCloud(c) {
+  ctx.fillStyle = 'rgba(190,210,200,0.55)';
+  ctx.fillRect(c.x,      c.y,      c.w,      10);
+  ctx.fillRect(c.x + 10, c.y - 8,  c.w - 20, 10);
+  ctx.fillRect(c.x + Math.round(c.w * 0.35), c.y - 4, Math.round(c.w * 0.3), 8);
+}
+
+function drawGround() {
+  ctx.fillStyle = '#718096';
+  ctx.fillRect(0, GROUND + 2, W, 2);
+  ctx.fillStyle = '#a0aec0';
+  for (let i = 0; i < 26; i++) {
+    const px = ((i * 67 + frame * speed * 0.5) % (W + 80)) - 40;
+    ctx.fillRect(px,      GROUND + 7,  4, 2);
+    ctx.fillRect(px + 22, GROUND + 12, 6, 2);
+    ctx.fillRect(px + 44, GROUND + 8,  3, 2);
+  }
+}
+
+function hits(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+function pad(n) { return String(Math.floor(n)).padStart(5, '0'); }
+
+/* ── Loop ───────────────────────────────────────────────────── */
+function update() {
+  frame++; score += 0.1;
+  speed = Math.min(6 + Math.floor(score / 100) * 0.5, 15);
+  dino.update();
+
+  for (let c of clouds) c.x -= c.s;
+  clouds = clouds.filter(c => c.x > -200);
+  if (frame % 120 === 0) spawnCloud();
+
+  obstacleTimer++;
+  if (obstacleTimer > obstacleInterval) {
+    spawnObstacle(); obstacleTimer = 0;
+    obstacleInterval = Math.max(35, 50 + Math.floor(Math.random() * 60) - Math.floor(score / 200) * 5);
+  }
+
+  for (let ob of obstacles) {
+    ob.x -= speed;
+    if (ob.type === 'bird' && frame % 8 === 0) ob.wf = (ob.wf + 1) % 2;
+    const db = dino.box();
+    const ob2 = ob.type === 'cactus'
+      ? { x: ob.x + 4, y: ob.y - ob.h + 4, w: ob.w - 8, h: ob.h - 4 }
+      : { x: ob.x + 5, y: ob.y + 4, w: ob.w - 10, h: ob.h - 6 };
+    if (hits(db, ob2)) { die(); return; }
+  }
+  obstacles = obstacles.filter(ob => ob.x > -120);
+
+  scoreEl.textContent = pad(score);
+  if (score > highScore) { highScore = score; hiEl.textContent = pad(highScore); }
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+  for (let c of clouds) drawCloud(c);
+  drawGround();
+  for (let ob of obstacles) ob.type === 'cactus' ? drawCactus(ob) : drawBird(ob);
+  dino.draw();
+}
+
+function loop() { if (state === 'running') { update(); draw(); raf = requestAnimationFrame(loop); } }
+
+function startGame() {
+  score = 0; speed = 6; frame = 0;
+  obstacles = []; obstacleTimer = 0; obstacleInterval = 60;
+  Object.assign(dino, { y: GROUND, vy: 0, jumping: false, ducking: false, h: 50, leg: 0 });
+  clouds = []; spawnCloud(); spawnCloud();
+  msg.style.display = 'none';
+  state = 'running'; loop();
+}
+
+function die() {
+  state = 'dead'; cancelAnimationFrame(raf); draw();
+  msg.querySelector('.title').textContent = 'GAME OVER';
+  msg.querySelector('.hint').textContent = 'Press SPACE or \u2191 to retry';
+  msg.style.display = 'block';
+}
+
+/* ── Controls ───────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (state !== 'running') { startGame(); return; }
+    dino.jump();
+  }
+  if (e.code === 'ArrowDown' && state === 'running') dino.duck(true);
+});
+document.addEventListener('keyup', e => { if (e.code === 'ArrowDown') dino.duck(false); });
+canvas.addEventListener('click', () => state !== 'running' ? startGame() : dino.jump());
+canvas.addEventListener('touchstart', e => { e.preventDefault(); state !== 'running' ? startGame() : dino.jump(); });
+
+draw();
+msg.style.display = 'block';
+</script>
+</body>
+</html>
