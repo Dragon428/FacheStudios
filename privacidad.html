@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Política de Privacidad - FacheStudios</title>
+    <title>Privacy Policy</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
         body {
@@ -22,23 +22,38 @@
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
-        h1 {
-            font-weight: 800;
-            color: #d4762b;
-            margin-top: 0;
+        .lang-switcher {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-bottom: 20px;
         }
-        h2 {
+        .lang-switcher button {
+            background: #f0f0f0;
+            border: 1px solid #e0e0e0;
+            padding: 6px 12px;
+            cursor: pointer;
+            border-radius: 6px;
             font-weight: 600;
-            color: #6b5ce7;
-            margin-top: 30px;
-        }
-        p, li {
-            font-size: 16px;
+            font-family: 'Inter', sans-serif;
             color: #6b6b6b;
+            transition: all 0.2s;
         }
-        ul {
-            padding-left: 20px;
+        .lang-switcher button:hover {
+            background: #e4e4e4;
         }
+        body.lang-en #btn-en, body.lang-es #btn-es {
+            background: #6b5ce7;
+            color: #ffffff;
+            border-color: #6b5ce7;
+        }
+        body.lang-en .es { display: none; }
+        body.lang-es .en { display: none; }
+
+        h1 { font-weight: 800; color: #d4762b; margin-top: 0; }
+        h2 { font-weight: 600; color: #6b5ce7; margin-top: 30px; }
+        p, li { font-size: 16px; color: #6b6b6b; }
+        ul { padding-left: 20px; }
         .btn-back {
             display: inline-block;
             margin-top: 30px;
@@ -50,32 +65,62 @@
             font-weight: 600;
             transition: background 0.2s;
         }
-        .btn-back:hover {
-            background-color: #6b5ce7;
-        }
+        .btn-back:hover { background-color: #6b5ce7; }
     </style>
 </head>
-<body>
+<body class="lang-en">
 
 <div class="container">
-    <h1>Política de Privacidad</h1>
-    <p><strong>Última actualización:</strong> Mayo de 2026</p>
-    <p>En <strong>FacheStudios</strong> nos tomamos muy en serio la confianza de nuestros jugadores. Esta política detalla de forma clara y transparente cómo gestionamos la información en nuestra plataforma de juegos.</p>
+    <div class="lang-switcher">
+        <button id="btn-en" onclick="setLanguage('en')">EN</button>
+        <button id="btn-es" onclick="setLanguage('es')">ES</button>
+    </div>
 
-    <h2>1. Información que recopilamos</h2>
-    <p>FacheStudios es una plataforma de acceso libre y gratuito. <strong>No solicitamos, ni recopilamos, ni almacenamos ningún tipo de dato personal</strong> (como nombres, correos o contraseñas) para poder jugar a nuestros simuladores y juegos arcade.</p>
+    <div class="en">
+        <h1>Privacy Policy</h1>
+        <p><strong>Last updated:</strong> May 2026</p>
+        <p>At <strong>FacheStudios</strong>, we take our players' trust seriously. This policy explains clearly and transparently how we manage information across our gaming platform.</p>
+        
+        <h2>1. Information We Collect</h2>
+        <p>FacheStudios is a completely free and open platform. <strong>We do not request, collect, or store any personal data</strong> (such as names, emails, or passwords) to play our simulators and arcade games.</p>
+        
+        <h2>2. Third-Party Services (Donations)</h2>
+        <p>We offer users the option to support our project voluntarily through <strong>Ko-fi</strong>. When making a donation, that external platform processes payment data securely. FacheStudios has no access to your banking or credit card details.</p>
+        
+        <h2>3. Zero Tracking Ads</h2>
+        <p>Our website does not contain scripts from external advertising networks or mass behavior tracking tools. Your gaming experience is completely clean and private.</p>
+        
+        <h2>4. Contact</h2>
+        <p>If you have any questions about this policy, you can contact us at any time via our technical support email: <a href="mailto:contact@fachestudios.com" style="color: #6b5ce7; text-decoration: none;">contact@fachestudios.com</a>.</p>
+        
+        <a href="index.html" class="btn-back">Back to game</a>
+    </div>
 
-    <h2>2. Servicios de Terceros (Donaciones)</h2>
-    <p>Ofrecemos a los usuarios la posibilidad de apoyar nuestro proyecto de forma voluntaria a través de la plataforma <strong>Ko-fi</strong>. Al realizar una donación, dicha plataforma externa procesa los datos de pago de forma segura. FacheStudios no tiene acceso a tus datos bancarios ni de tarjetas de crédito.</p>
+    <div class="es">
+        <h1>Política de Privacidad</h1>
+        <p><strong>Última actualización:</strong> Mayo de 2026</p>
+        <p>En <strong>FacheStudios</strong> nos tomamos muy en serio la confianza de nuestros jugadores. Esta política detalla de forma clara y transparente cómo gestionamos la información en nuestra plataforma de juegos.</p>
 
-    <h2>3. Cero Publicidad de Rastreo</h2>
-    <p>Nuestra web no contiene scripts de redes publicitarias externas (como AdSense o Adsterra) ni herramientas de rastreo masivo de comportamiento. Tu experiencia de juego es completamente limpia y privada.</p>
+        <h2>1. Información que recopilamos</h2>
+        <p>FacheStudios es una plataforma de acceso libre y gratuito. <strong>No solicitamos, ni recopilamos, ni almacenamos ningún tipo de dato personal</strong> (como nombres, correos o contraseñas) para poder jugar a nuestros simuladores y juegos arcade.</p>
 
-    <h2>4. Contacto</h2>
-    <p>Si tienes cualquier duda sobre esta política, puedes contactarnos en cualquier momento a través de nuestro correo electrónico técnico: <a href="mailto:contact@fachestudios.com" style="color: #6b5ce7; text-decoration: none;">contact@fachestudios.com</a>.</p>
+        <h2>2. Servicio de Terceros (Donaciones)</h2>
+        <p>Ofrecemos a los usuarios la posibilidad de apoyar nuestro proyecto de forma voluntaria a través de la plataforma <strong>Ko-fi</strong>. Al realizar una donación, dicha plataforma externa procesa los datos de pago de forma segura. FacheStudios no tiene acceso a tus datos bancarios ni de tarjetas de crédito.</p>
 
-    <a href="index.html" class="btn-back">Volver al juego</a>
+        <h2>3. Cero Publicidad de Rastreo</h2>
+        <p>Nuestra web no contiene scripts de redes publicitarias externas ni herramientas de rastreo masivo de comportamiento. Tu experiencia de juego es completamente limpia y privada.</p>
+
+        <h2>4. Contacto</h2>
+        <p>Si tienes cualquier duda sobre esta política, puedes contactarnos en cualquier momento a través de nuestro correo electrónico técnico: <a href="mailto:contact@fachestudios.com" style="color: #6b5ce7; text-decoration: none;">contact@fachestudios.com</a>.</p>
+
+        <a href="/" class="btn-back">Volver al juego</a>
+    </div>
 </div>
 
+<script>
+    function setLanguage(lang) {
+        document.body.className = 'lang-' + lang;
+    }
+</script>
 </body>
 </html>
