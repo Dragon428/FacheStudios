@@ -588,6 +588,23 @@
 
 
 </script>
+<script>
+    // Bloquear clic derecho
+    document.addEventListener('contextmenu', event => event.preventDefault());
+
+    // Bloquear atajos de teclado para inspeccionar
+    document.onkeydown = function(e) {
+        if (e.key == 123) { // F12
+            return false;
+        }
+        if (e.ctrlKey && e.shiftKey && (e.key == 'I'.charCodeAt(0) || e.key == 'J'.charCodeAt(0))) {
+            return false;
+        }
+        if (e.ctrlKey && e.key == 'U'.charCodeAt(0)) { // Ver código fuente
+            return false;
+        }
+    };
+</script>
 </body>
 </html>
 
